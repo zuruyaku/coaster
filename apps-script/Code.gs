@@ -287,7 +287,7 @@ function buildSummarySheet() {
       `=SUMIFS(Reservations!F:F,Reservations!B:B,Events!A${r},Reservations!G:G,"confirmed")`,
       `=E${r}-F${r}`,
       `=IF(G${r}<=0,"満席",IF(G${r}<=CEILING(E${r}*0.2,1),"残りわずか","受付中"))`,
-      `=TEXTJOIN(", ",TRUE,IF((Reservations!$B$2:$B$1000=Events!A${r})*(Reservations!$G$2:$G$1000="confirmed"),Reservations!$C$2:$C$1000,""))`,
+      `=ARRAYFORMULA(TEXTJOIN(", ",TRUE,IF((Reservations!$B$2:$B$1000=Events!A${r})*(Reservations!$G$2:$G$1000="confirmed"),Reservations!$C$2:$C$1000,"")))`,
     ]);
   }
 
