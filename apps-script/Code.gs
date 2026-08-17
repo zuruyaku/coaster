@@ -14,6 +14,7 @@
 const EVENTS_SHEET_NAME = "Events";
 const RESERVATIONS_SHEET_NAME = "Reservations";
 const ORGANIZER_EMAIL = "info@yomitanhanaori.com";
+const SENDER_NAME = "読谷山花織 予約受付";
 
 const EVENTS_HEADERS = ["id", "title", "date", "time", "venue", "description", "imageUrl", "capacity"];
 const RESERVATIONS_HEADERS = ["timestamp", "eventId", "name", "email", "phone", "partySize", "status"];
@@ -136,6 +137,8 @@ function sendReservationEmails(event, reservation) {
     MailApp.sendEmail({
       to: ORGANIZER_EMAIL,
       subject: `【新規予約】${eventLabel}`,
+      name: SENDER_NAME,
+      noReply: true,
       body: [
         "新しい予約が入りました。",
         "",
@@ -157,6 +160,8 @@ function sendReservationEmails(event, reservation) {
     MailApp.sendEmail({
       to: reservation.email,
       subject: `【予約完了】${eventLabel}`,
+      name: SENDER_NAME,
+      noReply: true,
       body: [
         `${reservation.name} 様`,
         "",
@@ -168,6 +173,7 @@ function sendReservationEmails(event, reservation) {
         `参加人数: ${reservation.partySize}名`,
         "",
         "当日はお気をつけてお越しください。",
+        "※このメールは送信専用です。返信いただいても対応できません。",
       ].join("\n"),
     });
   } catch (err) {
