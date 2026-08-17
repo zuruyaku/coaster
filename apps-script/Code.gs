@@ -13,6 +13,7 @@
 
 const EVENTS_SHEET_NAME = "Events";
 const RESERVATIONS_SHEET_NAME = "Reservations";
+const ORGANIZER_EMAIL = "info@yomitanhanaori.com";
 
 const EVENTS_HEADERS = ["id", "title", "date", "time", "venue", "description", "imageUrl", "capacity"];
 const RESERVATIONS_HEADERS = ["timestamp", "eventId", "name", "email", "phone", "partySize", "status"];
@@ -118,9 +119,59 @@ function handleReservation(body) {
     const sheet = ss.getSheetByName(RESERVATIONS_SHEET_NAME);
     sheet.appendRow([new Date(), eventId, name, email, phone, partySize, "confirmed"]);
 
+    sendReservationEmails(event, { name, email, phone, partySize });
+
     return jsonOutput({ success: true });
   } finally {
     lock.releaseLock();
+  }
+}
+
+// 予約確定時に、主催者への通知メールと予約者への確認メールを送る。
+// メール送信の失敗が予約自体の成否に影響しないよう、それぞれ個別にtry/catchする。
+function sendReservationEmails(event, reservation) {
+  const eventLabel = `${event.title}（${event.date} ${event.time}）`;
+
+  try {
+    MailApp.sendEmail({
+      to: ORGANIZER_EMAIL,
+      subject: `【新規予約】${eventLabel}`,
+      body: [
+        "新しい予約が入りました。",
+        "",
+        `イベント: ${event.title}`,
+        `日時: ${event.date} ${event.time}`,
+        `会場: ${event.venue}`,
+        "",
+        `お名前: ${reservation.name}`,
+        `メール: ${reservation.email}`,
+        `電話番号: ${reservation.phone || "(未入力)"}`,
+        `参加人数: ${reservation.partySize}名`,
+      ].join("\n"),
+    });
+  } catch (err) {
+    // 通知メールの失敗は無視する（予約データ自体はスプレッドシートに保存済み）
+  }
+
+  try {
+    MailApp.sendEmail({
+      to: reservation.email,
+      subject: `【予約完了】${eventLabel}`,
+      body: [
+        `${reservation.name} 様`,
+        "",
+        "以下の内容でご予約を承りました。",
+        "",
+        `イベント: ${event.title}`,
+        `日時: ${event.date} ${event.time}`,
+        `会場: ${event.venue}`,
+        `参加人数: ${reservation.partySize}名`,
+        "",
+        "当日はお気をつけてお越しください。",
+      ].join("\n"),
+    });
+  } catch (err) {
+    // 確認メールの失敗は無視する（予約データ自体はスプレッドシートに保存済み）
   }
 }
 
