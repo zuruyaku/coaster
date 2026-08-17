@@ -246,3 +246,64 @@ function rowToObject(headers, row) {
 function jsonOutput(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
+
+// 「まとめ」シートに、枠ごとの予約状況（定員・予約人数・残り・状況・予約者名）を集計する。
+// スプレッドシートの数式で組んでいるため、一度実行すればあとは自動で最新状態に更新される。
+// Eventsシートに行を追加した場合は、まとめ表に反映させるためもう一度このシートの機能を実行し直す。
+function buildSummarySheet() {
+  const ss = SpreadsheetApp.getActive();
+  const eventsSheet = ss.getSheetByName(EVENTS_SHEET_NAME);
+  const lastRow = eventsSheet.getLastRow();
+
+  let sheet = ss.getSheetByName("まとめ");
+  if (sheet) {
+    sheet.clear();
+    sheet.clearConditionalFormatRules();
+  } else {
+    sheet = ss.insertSheet("まとめ");
+  }
+
+  const headers = ["日付", "時間", "タイトル", "会場", "定員", "予約人数", "残り", "状況", "予約者"];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
+  sheet.setFrozenRows(1);
+
+  if (lastRow < 2) return;
+
+  const dataRowCount = lastRow - 1;
+  const rows = [];
+  for (let r = 2; r <= lastRow; r++) {
+    rows.push([
+      `=TEXT(Events!C${r},"yyyy-mm-dd")`,
+      `=TEXT(Events!D${r},"hh:mm")`,
+      `=Events!B${r}`,
+      `=Events!E${r}`,
+      `=Events!H${r}`,
+      `=SUMIFS(Reservations!F:F,Reservations!B:B,Events!A${r},Reservations!G:G,"confirmed")`,
+      `=E${r}-F${r}`,
+      `=IF(G${r}<=0,"満席",IF(G${r}<=CEILING(E${r}*0.2,1),"残りわずか","受付中"))`,
+      `=TEXTJOIN(", ",TRUE,IF((Reservations!$B$2:$B$1000=Events!A${r})*(Reservations!$G$2:$G$1000="confirmed"),Reservations!$C$2:$C$1000,""))`,
+    ]);
+  }
+
+  sheet.getRange(2, 1, dataRowCount, headers.length).setFormulas(rows);
+  sheet.autoResizeColumns(1, headers.length);
+
+  const statusRange = sheet.getRange(2, 8, dataRowCount, 1);
+  sheet.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("満席")
+      .setBackground("#f8e6e5")
+      .setRanges([statusRange])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("残りわずか")
+      .setBackground("#fdf1de")
+      .setRanges([statusRange])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("受付中")
+      .setBackground("#e6f1e8")
+      .setRanges([statusRange])
+      .build(),
+  ]);
+}
